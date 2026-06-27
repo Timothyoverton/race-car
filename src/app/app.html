@@ -1,138 +1,534 @@
 <div class="game-wrapper">
 
-  <!-- HUD -->
-  <div class="hud" [style.width.px]="gameWidth">
-    <div class="hud-item">
-      Score: {{ score() }}
+<!-- ═══════════════════════════════════════════════════════════ TITLE ═══ -->
+<div class="screen title-screen" *ngIf="phase() === 'title'">
+  <div class="title-content">
+    <div class="title-stars">★ ★ ★</div>
+    <h1 class="title-logo">RACE<span class="title-car-icon">🏎</span>CAR</h1>
+    <p class="title-sub">Mica's Racing Championship</p>
+    <div class="title-buttons">
+      <button class="btn-big btn-p1" (click)="pick1P()">1 PLAYER</button>
+      <button class="btn-big btn-p2" (click)="pick2P()">2 PLAYERS</button>
     </div>
-    <div class="hud-item hud-lives">
-      <span *ngFor="let _ of livesArray()" class="life-heart">♥</span>
+    <div class="title-controls">
+      <div class="ctrl-row"><span class="ctrl-key">→</span> accelerate (P1) &nbsp;|&nbsp; <span class="ctrl-key">L</span> turbo (P1)</div>
+      <div class="ctrl-row"><span class="ctrl-key">D</span> accelerate (P2) &nbsp;|&nbsp; <span class="ctrl-key">SPC</span> turbo (P2)</div>
     </div>
-    <div class="hud-title">BREAKOUT</div>
-    <div class="hud-item hud-level">Level: {{ level() }}</div>
-    <div class="hud-item hud-right">Best: {{ getBestScore() }}</div>
-  </div>
-
-  <!-- Active power-up bar -->
-  <div class="powerup-bar"
-       *ngIf="activePowerUp && powerUpSeconds() > 1"
-       [style.width.px]="gameWidth"
-       [style.border-color]="powerUpColor()"
-       [style.color]="powerUpColor()">
-    <span class="powerup-name">{{ powerUpName() }}</span>
-    <span class="powerup-timer">{{ powerUpSeconds() }}s</span>
-  </div>
-
-  <!-- Game board -->
-  <div class="game-container">
-    <div class="game-board"
-         [style.width.px]="gameWidth"
-         [style.height.px]="gameHeight"
-         [class.is-game-over]="gameOver()">
-
-      <!-- Bricks -->
-      <div
-        *ngFor="let brick of bricks"
-        class="brick"
-        [class.damaged]="brick.health < brick.maxHealth"
-        [style.left.px]="brick.x"
-        [style.top.px]="brick.y"
-        [style.width.px]="brick.width"
-        [style.height.px]="brick.height"
-        [style.background]="brickDisplayColor(brick)"
-        [style.box-shadow]="'0 0 8px ' + brickDisplayColor(brick)">
-      </div>
-
-      <!-- Paddle -->
-      <div
-        class="paddle"
-        [style.left.px]="paddle.x"
-        [style.top.px]="paddle.y"
-        [style.width.px]="paddle.width"
-        [style.height.px]="paddle.height"
-        [style.background]="paddleBackground()"
-        [style.box-shadow]="paddleShadow()">
-      </div>
-
-      <!-- Balls -->
-      <div
-        *ngFor="let ball of balls"
-        class="ball"
-        [style.left.px]="ball.x - ball.radius"
-        [style.top.px]="ball.y - ball.radius"
-        [style.width.px]="ball.radius * 2"
-        [style.height.px]="ball.radius * 2">
-      </div>
-
-      <!-- Power-up drops -->
-      <div
-        *ngFor="let pu of powerUps"
-        class="power-up"
-        [style.left.px]="pu.x"
-        [style.top.px]="pu.y"
-        [style.background]="pu.color"
-        [style.box-shadow]="'0 0 14px 4px ' + pu.color"
-        [style.border-color]="pu.color">{{ pu.label }}</div>
-
-      <!-- Laser shots -->
-      <div
-        *ngFor="let laser of laserShots"
-        class="laser"
-        [style.left.px]="laser.x"
-        [style.top.px]="laser.y">
-      </div>
-
-      <!-- Special event flash -->
-      <div class="special-msg" *ngIf="specialMessage()">{{ specialMessage() }}</div>
-
-      <!-- Launch hint -->
-      <div class="launch-hint" *ngIf="hasBallOnPaddle() && !gameOver()">
-        Press SPACE to launch!
-      </div>
-
-      <!-- Game Over overlay -->
-      <div class="game-over-screen" *ngIf="gameOver()">
-        <div class="game-over-content">
-          <h1>Game Over!</h1>
-          <p class="final-score">Score: {{ score() }}</p>
-          <p>Level reached: {{ level() }}</p>
-          <p class="best-score" *ngIf="score() === getBestScore() && gameCount > 1">⭐ New Session Best!</p>
-          <button (click)="restartGame()" class="restart-btn">Play Again</button>
+    <!-- Session leaderboard -->
+    <div class="title-leaderboard" *ngIf="leaderboard.length > 0">
+      <h3>Session Best Times</h3>
+      <div *ngFor="let t of TRACKS">
+        <div class="lb-track-name" *ngIf="bestForTrack(t.id).length > 0">{{ t.name }}</div>
+        <div class="lb-entry" *ngFor="let e of bestForTrack(t.id); let i = index">
+          <span class="lb-rank">{{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)+'.'}}</span>
+          <span class="lb-name">{{ e.name }}</span>
+          <span class="lb-time">{{ fmtTime(e.timeMs) }}</span>
         </div>
       </div>
+    </div>
+  </div>
+</div>
 
+<!-- ═══════════════════════════════════════════════════════ NAME ENTRY ═══ -->
+<div class="screen name-screen" *ngIf="phase() === 'name-p1' || phase() === 'name-p2'">
+  <div class="name-content">
+    <div class="name-icon">{{ phase() === 'name-p1' ? '🏁' : '🚦' }}</div>
+    <h2>{{ phase() === 'name-p1' ? 'Player 1' : 'Player 2' }}, what's your name?</h2>
+    <div class="name-input-box">
+      <span class="name-typed">{{ nameInput }}<span class="cursor">|</span></span>
+    </div>
+    <p class="name-hint">Type your name and press ENTER</p>
+    <button class="btn-go" (click)="confirmName()" [disabled]="nameInput.trim().length === 0">GO →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ CAR SELECT ═══ -->
+<div class="screen car-screen" *ngIf="phase() === 'car-p1' || phase() === 'car-p2'">
+  <h2 class="pick-title">{{ carPickerTitle() }}</h2>
+  <div class="car-grid">
+    <div class="car-card" *ngFor="let car of CARS"
+         [class.selected]="isSelectedCar(car)"
+         (click)="pickCar(car)">
+
+      <!-- Car SVG preview -->
+      <svg width="160" height="90" class="car-preview-svg">
+        <!-- Sports Car -->
+        <g *ngIf="car.id === 'sports'" transform="translate(80,78)">
+          <circle cx="-30" cy="0" r="14" fill="#111"/><circle cx="-30" cy="0" r="6" fill="#555"/>
+          <circle cx=" 30" cy="0" r="14" fill="#111"/><circle cx=" 30" cy="0" r="6" fill="#555"/>
+          <polygon points="-48,-14 -42,-30 30,-30 48,-14" [attr.fill]="car.color"/>
+          <polygon points="-20,-30 -12,-48 24,-48 32,-30" [attr.fill]="car.dark"/>
+          <polygon points="-10,-31 -4,-46 20,-46 26,-31" fill="#88ddff" opacity="0.85"/>
+          <circle cx="38" cy="-16" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+        <!-- 4x4 SUV -->
+        <g *ngIf="car.id === 'suv'" transform="translate(80,78)">
+          <circle cx="-30" cy="0" r="15" fill="#111"/><circle cx="-30" cy="0" r="7" fill="#555"/>
+          <circle cx=" 30" cy="0" r="15" fill="#111"/><circle cx=" 30" cy="0" r="7" fill="#555"/>
+          <rect x="-44" y="-32" width="88" height="32" rx="3" [attr.fill]="car.color"/>
+          <rect x="-34" y="-54" width="68" height="24" rx="4" [attr.fill]="car.color"/>
+          <rect x="-27" y="-51" width="24" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+          <rect x="3"   y="-51" width="22" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+          <rect x="-34" y="-56" width="68" height="4" rx="2" [attr.fill]="car.dark" opacity="0.6"/>
+          <circle cx="40" cy="-18" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+        <!-- Monster Truck -->
+        <g *ngIf="car.id === 'monster'" transform="translate(80,78)">
+          <circle cx="-33" cy="0" r="22" fill="#111"/><circle cx="-33" cy="0" r="10" fill="#444"/>
+          <circle cx=" 33" cy="0" r="22" fill="#111"/><circle cx=" 33" cy="0" r="10" fill="#444"/>
+          <rect x="-40" y="-52" width="80" height="30" rx="4" [attr.fill]="car.color"/>
+          <rect x="-28" y="-74" width="56" height="24" rx="4" [attr.fill]="car.color"/>
+          <rect x="-20" y="-71" width="16" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+          <rect x="4"   y="-71" width="14" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+          <circle cx="42" cy="-38" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+        <!-- Buggy -->
+        <g *ngIf="car.id === 'buggy'" transform="translate(80,78)">
+          <circle cx="-28" cy="0" r="16" fill="#111"/><circle cx="-28" cy="0" r="7" fill="#555"/>
+          <circle cx=" 28" cy="0" r="16" fill="#111"/><circle cx=" 28" cy="0" r="7" fill="#555"/>
+          <polygon points="-40,-14 -34,-34 34,-34 40,-14" [attr.fill]="car.color"/>
+          <path d="M-12,-34 C-12,-58 12,-58 12,-34" fill="none" [attr.stroke]="car.dark" stroke-width="5"/>
+          <circle cx="2" cy="-42" r="11" fill="#ffcc66"/>
+          <circle cx="2" cy="-42" r="11" fill="none" [attr.stroke]="car.dark" stroke-width="2"/>
+          <circle cx="6" cy="-44" r="3" fill="#ffffff" opacity="0.5"/>
+          <circle cx="40" cy="-16" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+        <!-- Van -->
+        <g *ngIf="car.id === 'van'" transform="translate(80,78)">
+          <circle cx="-28" cy="0" r="13" fill="#111"/><circle cx="-28" cy="0" r="6" fill="#555"/>
+          <circle cx=" 28" cy="0" r="13" fill="#111"/><circle cx=" 28" cy="0" r="6" fill="#555"/>
+          <rect x="-42" y="-58" width="84" height="58" rx="5" [attr.fill]="car.color"/>
+          <rect x="-34" y="-52" width="58" height="20" rx="3" fill="#88ddff" opacity="0.85"/>
+          <line x1="2" y1="-55" x2="2" y2="-4" [attr.stroke]="car.dark" stroke-width="2" opacity="0.5"/>
+          <circle cx="40" cy="-22" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+      </svg>
+
+      <div class="car-name">{{ car.name }}</div>
+      <div class="car-desc">{{ car.desc }}</div>
+      <div class="car-stats">
+        <div class="stat-row">
+          <span class="stat-lbl">Speed</span>
+          <span class="stat-dot" *ngFor="let f of statDots(car.topSpeed/9)" [class.filled]="f"></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-lbl">Jump</span>
+          <span class="stat-dot" *ngFor="let f of statDots(car.spring/1.35)" [class.filled]="f"></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-lbl">Grip</span>
+          <span class="stat-dot" *ngFor="let f of statDots(car.grip)" [class.filled]="f"></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-lbl">Rock</span>
+          <span class="stat-dot" *ngFor="let f of statDots(car.boulder)" [class.filled]="f"></span>
+        </div>
+      </div>
+      <div class="selected-badge" *ngIf="isSelectedCar(car)">✓ SELECTED</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ TRACK SELECT ═══ -->
+<div class="screen track-screen" *ngIf="phase() === 'track'">
+  <h2 class="pick-title">Choose Your Track</h2>
+  <div class="track-list">
+    <div class="track-card" *ngFor="let track of TRACKS" (click)="pickTrack(track)"
+         [style.border-color]="track.accent">
+      <!-- Mini preview SVG -->
+      <svg width="400" height="70" class="track-preview">
+        <rect width="400" height="50" [attr.fill]="track.skyA"/>
+        <rect y="50" width="400" height="20" [attr.fill]="track.ground"/>
+        <g *ngFor="let obs of track.obstacles">
+          <rect *ngIf="obs.type==='oil'"
+                [attr.x]="obs.x / (track.length/400)" y="44" [attr.width]="obs.width/(track.length/400)" height="8"
+                fill="#222244" opacity="0.8" rx="3"/>
+          <polygon *ngIf="obs.type==='jump'"
+                   [attr.points]="(obs.x/(track.length/400))+',50 '+(obs.x/(track.length/400)+obs.width/(track.length/400))+',50 '+(obs.x/(track.length/400))+',38'"
+                   fill="#ffcc00" opacity="0.9"/>
+          <g *ngIf="obs.type==='boulders'">
+            <circle [attr.cx]="obs.x/(track.length/400)+6"  cy="47" r="5" fill="#888"/>
+            <circle [attr.cx]="obs.x/(track.length/400)+18" cy="46" r="6" fill="#777"/>
+            <circle [attr.cx]="obs.x/(track.length/400)+32" cy="47" r="5" fill="#888"/>
+          </g>
+          <rect *ngIf="obs.type==='mud'"
+                [attr.x]="obs.x/(track.length/400)" y="44" [attr.width]="obs.width/(track.length/400)" height="8"
+                fill="#663300" opacity="0.7" rx="2"/>
+        </g>
+        <!-- Finish flag -->
+        <rect x="390" y="30" width="8" height="20" fill="#fff"/>
+        <rect x="390" y="30" width="4" height="4" fill="#000"/>
+        <rect x="394" y="34" width="4" height="4" fill="#000"/>
+        <rect x="390" y="38" width="4" height="4" fill="#000"/>
+        <rect x="394" y="30" width="4" height="4" fill="#000"/>
+      </svg>
+      <div class="track-info">
+        <div class="track-name">{{ track.name }}</div>
+        <div class="track-desc">{{ track.desc }}</div>
+        <div class="track-lb" *ngIf="bestForTrack(track.id).length > 0">
+          Best: <strong>{{ bestForTrack(track.id)[0].name }}</strong> — {{ fmtTime(bestForTrack(track.id)[0].timeMs) }}
+        </div>
+      </div>
+      <div class="track-go">RACE →</div>
+    </div>
+  </div>
+  <button class="btn-back" (click)="backToTitle()">← Back</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ COUNTDOWN ═══ -->
+<div class="screen countdown-screen" *ngIf="phase() === 'countdown'">
+  <div class="cd-val" [class.cd-go]="countdownVal() === 0">
+    {{ countdownVal() === 0 ? 'GO!' : countdownVal() }}
+  </div>
+  <div class="cd-track">{{ selTrack?.name }}</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ RACING ═══ -->
+<div class="race-wrapper" *ngIf="phase() === 'race' || phase() === 'results'">
+
+  <!-- ── Player 1 Lane ── -->
+  <div class="lane-container" [style.background]="'linear-gradient(to bottom,' + selTrack?.skyA + ' 0%,' + selTrack?.skyB + ' 100%)'">
+    <div class="lane-name-tag">{{ p1.name }} — {{ selCarP1?.name }}</div>
+    <svg [attr.width]="GW" [attr.height]="LANE_H" class="lane-svg">
+      <!-- Scrolling world -->
+      <g [attr.transform]="'translate(' + (-cameraX(p1)) + ',0)'">
+        <!-- Ground -->
+        <rect x="-200" [attr.y]="GROUND_Y" [attr.width]="selTrack!.length + 400" height="200"
+              [attr.fill]="selTrack!.ground"/>
+        <rect x="-200" [attr.y]="GROUND_Y" [attr.width]="selTrack!.length + 400" height="6"
+              [attr.fill]="selTrack!.accent" opacity="0.6"/>
+
+        <!-- Scenery -->
+        <g *ngFor="let sx of sceneryX(); let i = index">
+          <!-- Desert cactus / mountain tree / jungle tree depending on track -->
+          <g *ngIf="selTrack!.id === 'desert'" [attr.transform]="'translate('+sx+','+(GROUND_Y-2)+')'">
+            <rect x="-4" y="-30" width="8" height="30" fill="#3a7a3a" rx="2"/>
+            <rect x="-12" y="-22" width="8" height="6" fill="#3a7a3a" rx="2"/>
+            <rect x="4"  y="-18" width="8" height="6" fill="#3a7a3a" rx="2"/>
+          </g>
+          <g *ngIf="selTrack!.id === 'mountain'" [attr.transform]="'translate('+sx+','+(GROUND_Y-2)+')'">
+            <polygon points="0,-40 -14,0 14,0" fill="#2a4a2a"/>
+            <polygon points="0,-30 -10,0 10,0" fill="#3a6a3a"/>
+          </g>
+          <g *ngIf="selTrack!.id === 'jungle'" [attr.transform]="'translate('+sx+','+(GROUND_Y-2)+')'">
+            <rect x="-3" y="-36" width="6" height="36" fill="#5a3a1a" rx="1"/>
+            <circle cx="0" cy="-38" r="18" fill="#2a6a1a" opacity="0.9"/>
+            <circle cx="-10" cy="-28" r="12" fill="#3a8a2a" opacity="0.8"/>
+            <circle cx="10"  cy="-30" r="12" fill="#3a8a2a" opacity="0.8"/>
+          </g>
+        </g>
+
+        <!-- Obstacles -->
+        <g *ngFor="let obs of obsInView(p1)">
+          <!-- Oil Slick -->
+          <g *ngIf="obs.type === 'oil'">
+            <ellipse [attr.cx]="obs.x + obs.width/2" [attr.cy]="GROUND_Y + 8" [attr.rx]="obs.width/2" ry="10" fill="#111133" opacity="0.85"/>
+            <ellipse [attr.cx]="obs.x + obs.width/2" [attr.cy]="GROUND_Y + 7" [attr.rx]="obs.width/2 - 8" ry="6" fill="#223355" opacity="0.6"/>
+            <text [attr.x]="obs.x + obs.width/2" [attr.y]="GROUND_Y - 10" text-anchor="middle" font-size="11" fill="#aaaacc">OIL SLICK</text>
+          </g>
+          <!-- Jump Ramp -->
+          <g *ngIf="obs.type === 'jump'">
+            <polygon [attr.points]="obs.x+','+GROUND_Y+' '+(obs.x+obs.width)+','+GROUND_Y+' '+obs.x+','+(GROUND_Y-50)"
+                     fill="#ffcc00"/>
+            <polygon [attr.points]="obs.x+','+GROUND_Y+' '+(obs.x+obs.width)+','+GROUND_Y+' '+obs.x+','+(GROUND_Y-50)"
+                     fill="none" stroke="#ff8800" stroke-width="2"/>
+            <text [attr.x]="obs.x + obs.width/2" [attr.y]="GROUND_Y - 58" text-anchor="middle" font-size="11" fill="#ffcc00">JUMP!</text>
+          </g>
+          <!-- Boulders -->
+          <g *ngIf="obs.type === 'boulders'">
+            <circle *ngFor="let bx of [12,30,52,72,96,120,146,168,196,220,244,268]; let bi = index"
+                    [attr.cx]="obs.x + bx" [attr.cy]="GROUND_Y + 4 + (bi%3)*3"
+                    [attr.r]="10 + (bi%3)*3" fill="#888" [attr.opacity]="0.7 + (bi%2)*0.15"/>
+            <text [attr.x]="obs.x + obs.width/2" [attr.y]="GROUND_Y - 10" text-anchor="middle" font-size="11" fill="#aaa">BOULDERS</text>
+          </g>
+          <!-- Mud -->
+          <g *ngIf="obs.type === 'mud'">
+            <ellipse [attr.cx]="obs.x + obs.width/2" [attr.cy]="GROUND_Y + 8" [attr.rx]="obs.width/2" ry="12" fill="#5a3a00" opacity="0.9"/>
+            <ellipse [attr.cx]="obs.x + obs.width/2 - 20" [attr.cy]="GROUND_Y + 6" rx="18" ry="8" fill="#7a5a10" opacity="0.5"/>
+            <ellipse [attr.cx]="obs.x + obs.width/2 + 25" [attr.cy]="GROUND_Y + 9" rx="16" ry="7" fill="#7a5a10" opacity="0.5"/>
+            <text [attr.x]="obs.x + obs.width/2" [attr.y]="GROUND_Y - 10" text-anchor="middle" font-size="11" fill="#cc9944">MUD</text>
+          </g>
+        </g>
+
+        <!-- Finish line -->
+        <g [attr.transform]="'translate('+selTrack!.length+',0)'">
+          <rect x="-4" [attr.y]="GROUND_Y - 90" width="6" height="90" fill="#fff"/>
+          <g *ngFor="let row of [0,1,2,3,4,5,6,7]">
+            <rect [attr.x]="-4 + (row%2)*8" [attr.y]="GROUND_Y - 88 + row*11" width="8" height="11" fill="#000"/>
+            <rect [attr.x]="-4 + ((row+1)%2)*8" [attr.y]="GROUND_Y - 88 + row*11" width="8" height="11" fill="#fff"/>
+          </g>
+          <text x="10" [attr.y]="GROUND_Y - 50" font-size="14" fill="#fff" font-weight="bold">FINISH</text>
+        </g>
+      </g>
+
+      <!-- Turbo flame (fixed position behind car) -->
+      <g *ngIf="p1.turboActive">
+        <ellipse [attr.cx]="CAR_X - 48" [attr.cy]="GROUND_Y - 15" rx="22" ry="10" fill="#ff4400" opacity="0.9" class="flame-anim"/>
+        <ellipse [attr.cx]="CAR_X - 62" [attr.cy]="GROUND_Y - 15" rx="14" ry="6"  fill="#ffaa00" opacity="0.7" class="flame-anim"/>
+      </g>
+
+      <!-- Car (fixed screen position) -->
+      <g [attr.transform]="carTransform(p1)">
+        <!-- Sports -->
+        <g *ngIf="selCarP1!.id === 'sports'">
+          <circle cx="-30" cy="0" r="14" fill="#111"/><circle cx="-30" [attr.cy]="0" r="6" fill="#555" [attr.transform]="'rotate('+p1.wheelRot+' -30 0)'"/>
+          <circle cx=" 30" cy="0" r="14" fill="#111"/><circle cx=" 30" [attr.cy]="0" r="6" fill="#555" [attr.transform]="'rotate('+p1.wheelRot+' 30 0)'"/>
+          <polygon points="-48,-14 -42,-30 30,-30 48,-14" [attr.fill]="selCarP1!.color"/>
+          <polygon points="-20,-30 -12,-48 24,-48 32,-30" [attr.fill]="selCarP1!.dark"/>
+          <polygon points="-10,-31 -4,-46 20,-46 26,-31" fill="#88ddff" opacity="0.85"/>
+          <circle cx="38" cy="-16" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+        <!-- SUV -->
+        <g *ngIf="selCarP1!.id === 'suv'">
+          <circle cx="-30" cy="0" r="15" fill="#111"/><circle cx="-30" cy="0" r="7" fill="#555" [attr.transform]="'rotate('+p1.wheelRot+' -30 0)'"/>
+          <circle cx=" 30" cy="0" r="15" fill="#111"/><circle cx=" 30" cy="0" r="7" fill="#555" [attr.transform]="'rotate('+p1.wheelRot+' 30 0)'"/>
+          <rect x="-44" y="-32" width="88" height="32" rx="3" [attr.fill]="selCarP1!.color"/>
+          <rect x="-34" y="-54" width="68" height="24" rx="4" [attr.fill]="selCarP1!.color"/>
+          <rect x="-27" y="-51" width="24" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+          <rect x="3"   y="-51" width="22" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+          <circle cx="40" cy="-18" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+        <!-- Monster -->
+        <g *ngIf="selCarP1!.id === 'monster'">
+          <circle cx="-33" cy="0" r="22" fill="#111"/><circle cx="-33" cy="0" r="10" fill="#444" [attr.transform]="'rotate('+p1.wheelRot+' -33 0)'"/>
+          <circle cx=" 33" cy="0" r="22" fill="#111"/><circle cx=" 33" cy="0" r="10" fill="#444" [attr.transform]="'rotate('+p1.wheelRot+' 33 0)'"/>
+          <rect x="-40" y="-52" width="80" height="30" rx="4" [attr.fill]="selCarP1!.color"/>
+          <rect x="-28" y="-74" width="56" height="24" rx="4" [attr.fill]="selCarP1!.color"/>
+          <rect x="-20" y="-71" width="16" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+          <rect x="4"   y="-71" width="14" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+          <circle cx="42" cy="-38" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+        <!-- Buggy -->
+        <g *ngIf="selCarP1!.id === 'buggy'">
+          <circle cx="-28" cy="0" r="16" fill="#111"/><circle cx="-28" cy="0" r="7" fill="#555" [attr.transform]="'rotate('+p1.wheelRot+' -28 0)'"/>
+          <circle cx=" 28" cy="0" r="16" fill="#111"/><circle cx=" 28" cy="0" r="7" fill="#555" [attr.transform]="'rotate('+p1.wheelRot+' 28 0)'"/>
+          <polygon points="-40,-14 -34,-34 34,-34 40,-14" [attr.fill]="selCarP1!.color"/>
+          <path d="M-12,-34 C-12,-58 12,-58 12,-34" fill="none" [attr.stroke]="selCarP1!.dark" stroke-width="5"/>
+          <circle cx="2" cy="-42" r="11" fill="#ffcc66"/>
+          <circle cx="6" cy="-44" r="3" fill="#ffffff" opacity="0.6"/>
+          <circle cx="40" cy="-16" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+        <!-- Van -->
+        <g *ngIf="selCarP1!.id === 'van'">
+          <circle cx="-28" cy="0" r="13" fill="#111"/><circle cx="-28" cy="0" r="6" fill="#555" [attr.transform]="'rotate('+p1.wheelRot+' -28 0)'"/>
+          <circle cx=" 28" cy="0" r="13" fill="#111"/><circle cx=" 28" cy="0" r="6" fill="#555" [attr.transform]="'rotate('+p1.wheelRot+' 28 0)'"/>
+          <rect x="-42" y="-58" width="84" height="58" rx="5" [attr.fill]="selCarP1!.color"/>
+          <rect x="-34" y="-52" width="58" height="20" rx="3" fill="#88ddff" opacity="0.85"/>
+          <line x1="2" y1="-55" x2="2" y2="-4" [attr.stroke]="selCarP1!.dark" stroke-width="2" opacity="0.5"/>
+          <circle cx="40" cy="-22" r="4" fill="#ffee66" opacity="0.9"/>
+        </g>
+      </g>
+
+      <!-- P1 HUD overlay -->
+      <rect x="0" y="0" width="960" height="36" fill="rgba(0,0,0,0.55)"/>
+      <!-- Progress bar -->
+      <rect x="0" y="26" width="960" height="6" fill="#333"/>
+      <rect x="0" y="26" [attr.width]="progressPct(p1) * 9.6" height="6" [attr.fill]="selCarP1!.color"/>
+      <!-- Speed dots -->
+      <text x="8" y="18" fill="#fff" font-size="12" font-weight="bold">{{ p1.name }}</text>
+      <text x="8" y="28" fill="#aaa" font-size="9">SPEED</text>
+      <g *ngFor="let d of [0,1,2,3,4,5,6,7,8]; let di = index">
+        <rect [attr.x]="50 + di*14" y="18" width="11" height="9" rx="2"
+              [attr.fill]="p1.speed / p1.car.topSpeed > di/9 ? selCarP1!.color : '#333'"/>
+      </g>
+      <!-- Turbo bar -->
+      <text x="200" y="12" fill="#ffcc00" font-size="9">TURBO</text>
+      <rect x="200" y="16" width="60" height="8" rx="3" fill="#333"/>
+      <rect x="200" y="16" [attr.width]="turboPct(p1) * 0.6" height="8" rx="3"
+            [attr.fill]="turboReady(p1) ? '#ffcc00' : (p1.turboActive ? '#ff4400' : '#886600')"/>
+      <!-- Time -->
+      <text x="740" y="18" fill="#fff" font-size="13" font-weight="bold" text-anchor="end"
+            *ngIf="!p1.finished">{{ fmtTime(0) }}</text>
+      <text x="740" y="18" fill="#ffcc00" font-size="13" font-weight="bold" text-anchor="end"
+            *ngIf="p1.finished">{{ fmtTime(p1.finishTime!) }} ✓</text>
+      <!-- Controls hint -->
+      <text x="760" y="12" fill="#888" font-size="9">→ ACCEL  L TURBO</text>
+    </svg>
+  </div>
+
+  <!-- ── Divider ── -->
+  <div class="lane-divider">
+    <span *ngIf="phase() === 'race'">● RACING ●</span>
+    <span *ngIf="phase() === 'results'" [style.color]="'#ffcc00'">{{ winnerMsg() }}</span>
+  </div>
+
+  <!-- ── Player 2 Lane ── -->
+  <div class="lane-container" [style.background]="playerCount === 2
+    ? 'linear-gradient(to bottom,' + selTrack?.skyA + ' 0%,' + selTrack?.skyB + ' 100%)'
+    : '#0a0a18'">
+
+    <!-- Single player placeholder -->
+    <div class="solo-placeholder" *ngIf="playerCount === 1">
+      <div class="solo-title">SINGLE PLAYER MODE</div>
+      <div class="solo-leaderboard" *ngIf="bestForTrack(selTrack!.id).length > 0">
+        <div class="solo-lb-title">{{ selTrack!.name }} — Best Times</div>
+        <div class="solo-lb-row" *ngFor="let e of bestForTrack(selTrack!.id); let i = index">
+          <span>{{ i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)+'.' }}</span>
+          <span class="solo-lb-name">{{ e.name }}</span>
+          <span class="solo-lb-time">{{ fmtTime(e.timeMs) }}</span>
+        </div>
+      </div>
+      <div class="solo-no-times" *ngIf="bestForTrack(selTrack!.id).length === 0">
+        No times recorded yet for this track.
+      </div>
+    </div>
+
+    <!-- 2P lane -->
+    <ng-container *ngIf="playerCount === 2">
+      <div class="lane-name-tag">{{ p2.name }} — {{ selCarP2?.name }}</div>
+      <svg [attr.width]="GW" [attr.height]="LANE_H" class="lane-svg">
+        <g [attr.transform]="'translate(' + (-cameraX(p2)) + ',0)'">
+          <rect x="-200" [attr.y]="GROUND_Y" [attr.width]="selTrack!.length + 400" height="200" [attr.fill]="selTrack!.ground"/>
+          <rect x="-200" [attr.y]="GROUND_Y" [attr.width]="selTrack!.length + 400" height="6" [attr.fill]="selTrack!.accent" opacity="0.6"/>
+          <!-- Scenery -->
+          <g *ngFor="let sx of sceneryX(); let i = index">
+            <g *ngIf="selTrack!.id === 'desert'" [attr.transform]="'translate('+sx+','+(GROUND_Y-2)+')'">
+              <rect x="-4" y="-30" width="8" height="30" fill="#3a7a3a" rx="2"/>
+              <rect x="-12" y="-22" width="8" height="6" fill="#3a7a3a" rx="2"/>
+              <rect x="4"  y="-18" width="8" height="6" fill="#3a7a3a" rx="2"/>
+            </g>
+            <g *ngIf="selTrack!.id === 'mountain'" [attr.transform]="'translate('+sx+','+(GROUND_Y-2)+')'">
+              <polygon points="0,-40 -14,0 14,0" fill="#2a4a2a"/><polygon points="0,-30 -10,0 10,0" fill="#3a6a3a"/>
+            </g>
+            <g *ngIf="selTrack!.id === 'jungle'" [attr.transform]="'translate('+sx+','+(GROUND_Y-2)+')'">
+              <rect x="-3" y="-36" width="6" height="36" fill="#5a3a1a" rx="1"/>
+              <circle cx="0" cy="-38" r="18" fill="#2a6a1a" opacity="0.9"/>
+              <circle cx="-10" cy="-28" r="12" fill="#3a8a2a" opacity="0.8"/>
+              <circle cx="10"  cy="-30" r="12" fill="#3a8a2a" opacity="0.8"/>
+            </g>
+          </g>
+          <!-- Obstacles (same as P1) -->
+          <g *ngFor="let obs of obsInView(p2)">
+            <g *ngIf="obs.type === 'oil'">
+              <ellipse [attr.cx]="obs.x + obs.width/2" [attr.cy]="GROUND_Y + 8" [attr.rx]="obs.width/2" ry="10" fill="#111133" opacity="0.85"/>
+              <text [attr.x]="obs.x + obs.width/2" [attr.y]="GROUND_Y - 10" text-anchor="middle" font-size="11" fill="#aaaacc">OIL SLICK</text>
+            </g>
+            <g *ngIf="obs.type === 'jump'">
+              <polygon [attr.points]="obs.x+','+GROUND_Y+' '+(obs.x+obs.width)+','+GROUND_Y+' '+obs.x+','+(GROUND_Y-50)" fill="#ffcc00"/>
+              <text [attr.x]="obs.x + obs.width/2" [attr.y]="GROUND_Y - 58" text-anchor="middle" font-size="11" fill="#ffcc00">JUMP!</text>
+            </g>
+            <g *ngIf="obs.type === 'boulders'">
+              <circle *ngFor="let bx of [12,30,52,72,96,120,146,168,196,220,244,268]; let bi = index"
+                      [attr.cx]="obs.x + bx" [attr.cy]="GROUND_Y + 4 + (bi%3)*3"
+                      [attr.r]="10 + (bi%3)*3" fill="#888" [attr.opacity]="0.7 + (bi%2)*0.15"/>
+              <text [attr.x]="obs.x + obs.width/2" [attr.y]="GROUND_Y - 10" text-anchor="middle" font-size="11" fill="#aaa">BOULDERS</text>
+            </g>
+            <g *ngIf="obs.type === 'mud'">
+              <ellipse [attr.cx]="obs.x + obs.width/2" [attr.cy]="GROUND_Y + 8" [attr.rx]="obs.width/2" ry="12" fill="#5a3a00" opacity="0.9"/>
+              <text [attr.x]="obs.x + obs.width/2" [attr.y]="GROUND_Y - 10" text-anchor="middle" font-size="11" fill="#cc9944">MUD</text>
+            </g>
+          </g>
+          <!-- Finish -->
+          <g [attr.transform]="'translate('+selTrack!.length+',0)'">
+            <rect x="-4" [attr.y]="GROUND_Y - 90" width="6" height="90" fill="#fff"/>
+            <g *ngFor="let row of [0,1,2,3,4,5,6,7]">
+              <rect [attr.x]="-4 + (row%2)*8" [attr.y]="GROUND_Y - 88 + row*11" width="8" height="11" fill="#000"/>
+              <rect [attr.x]="-4 + ((row+1)%2)*8" [attr.y]="GROUND_Y - 88 + row*11" width="8" height="11" fill="#fff"/>
+            </g>
+          </g>
+        </g>
+
+        <!-- Turbo flame P2 -->
+        <g *ngIf="p2.turboActive">
+          <ellipse [attr.cx]="CAR_X - 48" [attr.cy]="GROUND_Y - 15" rx="22" ry="10" fill="#ff4400" opacity="0.9" class="flame-anim"/>
+          <ellipse [attr.cx]="CAR_X - 62" [attr.cy]="GROUND_Y - 15" rx="14" ry="6"  fill="#ffaa00" opacity="0.7" class="flame-anim"/>
+        </g>
+
+        <!-- Car P2 -->
+        <g [attr.transform]="carTransform(p2)">
+          <g *ngIf="selCarP2!.id === 'sports'">
+            <circle cx="-30" cy="0" r="14" fill="#111"/><circle cx="-30" cy="0" r="6" fill="#555" [attr.transform]="'rotate('+p2.wheelRot+' -30 0)'"/>
+            <circle cx=" 30" cy="0" r="14" fill="#111"/><circle cx=" 30" cy="0" r="6" fill="#555" [attr.transform]="'rotate('+p2.wheelRot+' 30 0)'"/>
+            <polygon points="-48,-14 -42,-30 30,-30 48,-14" [attr.fill]="selCarP2!.color"/>
+            <polygon points="-20,-30 -12,-48 24,-48 32,-30" [attr.fill]="selCarP2!.dark"/>
+            <polygon points="-10,-31 -4,-46 20,-46 26,-31" fill="#88ddff" opacity="0.85"/>
+            <circle cx="38" cy="-16" r="4" fill="#ffee66" opacity="0.9"/>
+          </g>
+          <g *ngIf="selCarP2!.id === 'suv'">
+            <circle cx="-30" cy="0" r="15" fill="#111"/><circle cx="-30" cy="0" r="7" fill="#555" [attr.transform]="'rotate('+p2.wheelRot+' -30 0)'"/>
+            <circle cx=" 30" cy="0" r="15" fill="#111"/><circle cx=" 30" cy="0" r="7" fill="#555" [attr.transform]="'rotate('+p2.wheelRot+' 30 0)'"/>
+            <rect x="-44" y="-32" width="88" height="32" rx="3" [attr.fill]="selCarP2!.color"/>
+            <rect x="-34" y="-54" width="68" height="24" rx="4" [attr.fill]="selCarP2!.color"/>
+            <rect x="-27" y="-51" width="24" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+            <rect x="3"   y="-51" width="22" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+            <circle cx="40" cy="-18" r="4" fill="#ffee66" opacity="0.9"/>
+          </g>
+          <g *ngIf="selCarP2!.id === 'monster'">
+            <circle cx="-33" cy="0" r="22" fill="#111"/><circle cx="-33" cy="0" r="10" fill="#444" [attr.transform]="'rotate('+p2.wheelRot+' -33 0)'"/>
+            <circle cx=" 33" cy="0" r="22" fill="#111"/><circle cx=" 33" cy="0" r="10" fill="#444" [attr.transform]="'rotate('+p2.wheelRot+' 33 0)'"/>
+            <rect x="-40" y="-52" width="80" height="30" rx="4" [attr.fill]="selCarP2!.color"/>
+            <rect x="-28" y="-74" width="56" height="24" rx="4" [attr.fill]="selCarP2!.color"/>
+            <rect x="-20" y="-71" width="16" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+            <rect x="4"   y="-71" width="14" height="15" rx="2" fill="#88ddff" opacity="0.85"/>
+            <circle cx="42" cy="-38" r="4" fill="#ffee66" opacity="0.9"/>
+          </g>
+          <g *ngIf="selCarP2!.id === 'buggy'">
+            <circle cx="-28" cy="0" r="16" fill="#111"/><circle cx="-28" cy="0" r="7" fill="#555" [attr.transform]="'rotate('+p2.wheelRot+' -28 0)'"/>
+            <circle cx=" 28" cy="0" r="16" fill="#111"/><circle cx=" 28" cy="0" r="7" fill="#555" [attr.transform]="'rotate('+p2.wheelRot+' 28 0)'"/>
+            <polygon points="-40,-14 -34,-34 34,-34 40,-14" [attr.fill]="selCarP2!.color"/>
+            <path d="M-12,-34 C-12,-58 12,-58 12,-34" fill="none" [attr.stroke]="selCarP2!.dark" stroke-width="5"/>
+            <circle cx="2" cy="-42" r="11" fill="#ffcc66"/>
+            <circle cx="6" cy="-44" r="3" fill="#ffffff" opacity="0.6"/>
+            <circle cx="40" cy="-16" r="4" fill="#ffee66" opacity="0.9"/>
+          </g>
+          <g *ngIf="selCarP2!.id === 'van'">
+            <circle cx="-28" cy="0" r="13" fill="#111"/><circle cx="-28" cy="0" r="6" fill="#555" [attr.transform]="'rotate('+p2.wheelRot+' -28 0)'"/>
+            <circle cx=" 28" cy="0" r="13" fill="#111"/><circle cx=" 28" cy="0" r="6" fill="#555" [attr.transform]="'rotate('+p2.wheelRot+' 28 0)'"/>
+            <rect x="-42" y="-58" width="84" height="58" rx="5" [attr.fill]="selCarP2!.color"/>
+            <rect x="-34" y="-52" width="58" height="20" rx="3" fill="#88ddff" opacity="0.85"/>
+            <line x1="2" y1="-55" x2="2" y2="-4" [attr.stroke]="selCarP2!.dark" stroke-width="2" opacity="0.5"/>
+            <circle cx="40" cy="-22" r="4" fill="#ffee66" opacity="0.9"/>
+          </g>
+        </g>
+
+        <!-- P2 HUD -->
+        <rect x="0" y="0" width="960" height="36" fill="rgba(0,0,0,0.55)"/>
+        <rect x="0" y="26" width="960" height="6" fill="#333"/>
+        <rect x="0" y="26" [attr.width]="progressPct(p2) * 9.6" height="6" [attr.fill]="selCarP2!.color"/>
+        <text x="8" y="18" fill="#fff" font-size="12" font-weight="bold">{{ p2.name }}</text>
+        <g *ngFor="let d of [0,1,2,3,4,5,6,7,8]; let di = index">
+          <rect [attr.x]="50 + di*14" y="18" width="11" height="9" rx="2"
+                [attr.fill]="p2.speed / p2.car.topSpeed > di/9 ? selCarP2!.color : '#333'"/>
+        </g>
+        <text x="200" y="12" fill="#ffcc00" font-size="9">TURBO</text>
+        <rect x="200" y="16" width="60" height="8" rx="3" fill="#333"/>
+        <rect x="200" y="16" [attr.width]="turboPct(p2) * 0.6" height="8" rx="3"
+              [attr.fill]="turboReady(p2) ? '#ffcc00' : (p2.turboActive ? '#ff4400' : '#886600')"/>
+        <text x="740" y="18" fill="#fff" font-size="13" font-weight="bold" text-anchor="end" *ngIf="!p2.finished">  </text>
+        <text x="740" y="18" fill="#ffcc00" font-size="13" font-weight="bold" text-anchor="end" *ngIf="p2.finished">{{ fmtTime(p2.finishTime!) }} ✓</text>
+        <text x="760" y="12" fill="#888" font-size="9">D ACCEL  SPC TURBO</text>
+      </svg>
+    </ng-container>
+  </div>
+
+  <!-- Results overlay -->
+  <div class="results-overlay" *ngIf="phase() === 'results'">
+    <div class="results-box">
+      <div class="results-winner">{{ winnerMsg() }}</div>
+      <div class="results-times">
+        <div class="result-row">
+          <span [style.color]="selCarP1!.color">{{ p1.name }}</span>
+          <span>{{ p1.finishTime !== null ? fmtTime(p1.finishTime) : 'DNF' }}</span>
+        </div>
+        <div class="result-row" *ngIf="playerCount === 2">
+          <span [style.color]="selCarP2!.color">{{ p2.name }}</span>
+          <span>{{ p2.finishTime !== null ? fmtTime(p2.finishTime) : 'DNF' }}</span>
+        </div>
+      </div>
+      <div class="results-lb" *ngIf="bestForTrack(selTrack!.id).length > 0">
+        <div class="results-lb-title">{{ selTrack!.name }} — Best Times</div>
+        <div class="lb-entry" *ngFor="let e of bestForTrack(selTrack!.id); let i = index">
+          <span class="lb-rank">{{ i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.' }}</span>
+          <span class="lb-name">{{ e.name }}</span>
+          <span class="lb-time">{{ fmtTime(e.timeMs) }}</span>
+        </div>
+      </div>
+      <div class="results-btns">
+        <button class="btn-go" (click)="raceAgain()">RACE AGAIN</button>
+        <button class="btn-back" (click)="backToTitle()">MAIN MENU</button>
+      </div>
     </div>
   </div>
 
-  <!-- Controls hint -->
-  <div class="controls">
-    ← → or A / D to move &nbsp;|&nbsp; SPACE to launch
-    <span *ngIf="activePowerUp === 'laser'">&nbsp;|&nbsp; SPACE to fire laser</span>
-  </div>
-
-  <!-- Session History -->
-  <div class="history" *ngIf="sessionHistory.length > 0" [style.width.px]="gameWidth">
-    <h2>Session History</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Game</th>
-          <th>Score</th>
-          <th>Level</th>
-          <th>Time</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          *ngFor="let record of sessionHistory"
-          [class.best-row]="record.score === getBestScore()">
-          <td>#{{ record.gameNumber }}</td>
-          <td>{{ record.score }}</td>
-          <td>{{ record.level }}</td>
-          <td>{{ record.time }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
+</div>
 </div>

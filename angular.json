@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "breakout-game": {
+    "race-car": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -56,10 +56,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "breakout-game:build:production"
+              "buildTarget": "race-car:build:production"
             },
             "development": {
-              "buildTarget": "breakout-game:build:development"
+              "buildTarget": "race-car:build:development"
             }
           },
           "defaultConfiguration": "development"

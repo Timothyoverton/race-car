@@ -1,5 +1,5 @@
 {
-  "name": "breakout-game",
+  "name": "race-car",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -7,8 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "build:prod": "ng build --configuration production --base-href=\"/breakout-game/\"",
-    "deploy": "ng build --configuration production --base-href=\"/breakout-game/\" && npx angular-cli-ghpages --dir=dist/breakout-game/browser"
+    "build:prod": "ng build --configuration production --base-href=\"/race-car/\"",
+    "deploy": "ng build --configuration production --base-href=\"/race-car/\" && npx angular-cli-ghpages --dir=dist/race-car/browser"
   },
   "prettier": {
     "printWidth": 100,
